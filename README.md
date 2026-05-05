@@ -22,6 +22,8 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
 
 - Edit *main.py* and add relevant keywords in the **QUERY** param
 
+- Create an **.env** file with local settings, using *env_example* as template 
+
 - Run the script    
 ``python main.py``   
 
