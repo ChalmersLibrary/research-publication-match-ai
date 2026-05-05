@@ -1,0 +1,4 @@
+ES_URL=http://localhost:9200
+ES_UID=elastic_user
+ES_PW=elastic_password
+ES_INDEX=publications-test
