@@ -7,7 +7,7 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
 
 * Read access to an elastic research-publications index.
 * Python 3.x with required modules
-    - FAISS, Sentence-transformers, Elasticsearch (<7.16.3), Peft
+    - FAISS, Sentence-transformers, Elasticsearch (<=7.16.3), Peft
 
 ### Setup   
 
