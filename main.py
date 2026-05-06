@@ -58,21 +58,35 @@ except Exception as e:
 QUERY = os.environ.get("QUERY")
 
 # --- Quick keyword-only smoke test, DEBUG ---
-# print(f"[debug] running keyword search for: {QUERY!r}")
-# try:
-#     resp = es.search(
-#         index=os.environ["ES_INDEX"],
-#         body={"query": {"multi_match": {"query": QUERY, "fields": ["Title^3", "Abstract^2"]}}, "size": 5},
-#     )
-#     hits = resp["hits"]["hits"]
-#     total = resp["hits"]["total"]
-#     total_count = total["value"] if isinstance(total, dict) else total
-#     print(f"[debug] keyword hits: {total_count} total, showing top {len(hits)}")
-#     for h in hits:
-#         print(f"  score={h['_score']:.4f}  id={h['_source'].get('id')}  title={h['_source'].get('Title')}   pubyear={h['_source'].get('Year')}")
-# except Exception as e:
-#     print(f"[debug] keyword search failed: {e}")
-#     raise
+print(f"[debug] running keyword search for: {QUERY!r}")
+try:
+    resp = es.search(
+        index=os.environ["ES_INDEX"],
+        body={
+            "query": {
+                "bool": {
+                    "must": {"multi_match": {"query": QUERY, "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"]}},
+                    "filter": [
+                        {"range": {"Year": {"gte": os.environ.get("START_YEAR", 2014)}}},
+                        {"term": {"NeedsAttention": False}},
+                        {"term": {"IsDraft": False}},
+                        {"term": {"IsDeleted": False}},
+                    ],
+                }
+            },
+            "size": 5,
+        },
+    )
+    hits = resp["hits"]["hits"]
+    total = resp["hits"]["total"]
+    total_count = total["value"] if isinstance(total, dict) else total
+    print(f"\n[debug] keyword hits: {total_count} in total.\n")
+    #print(f"[debug] keyword hits: {total_count} total, showing top {len(hits)}")
+    """ for h in hits:
+        print(f"  score={h['_score']:.4f}  id={h['_source'].get('id')}  title={h['_source'].get('Title')}   pubyear={h['_source'].get('Year')}") """
+except Exception as e:
+    print(f"[debug] keyword search failed: {e}")
+    raise
 
 # Full hybrid search (requires publications.faiss + metadata.jsonl) ---
 retriever = HybridRetriever(
@@ -89,7 +103,7 @@ results = retriever.search(QUERY, top_k=50)
 CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Year", "PublicationType.NameEng"]
 OUTFILE_CSV = os.environ.get('OUTFILE_CSV', "results") + f".{datetime.now().strftime('%Y%m%d.%H%M%S')}.csv"
 
-print("RESULTS:")
+print(f"\nRESULTS:\n")
 
 with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
     writer = csv.DictWriter(csvfile, CSV_FIELDS + ["rrf_score", "matched_methods"])
@@ -103,10 +117,15 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
 
         es_fields = list(dict.fromkeys(re.sub(r"\[\d+\]", "", f) for f in CSV_FIELDS))
         record = retriever.fetch_record(r["doc_id"], fields=es_fields) or {}
+        # Only include publications from the specified publication year onward (e.g. 2018-)
+        if (record.get('Year') or 0) < int(os.environ.get("START_YEAR", 2014)):
+            continue
         writer.writerow({
             **{f: _get_nested(record, f) for f in CSV_FIELDS},
             "rrf_score": round(r["rrf_score"], 6),
             "matched_methods": "+".join(methods),
         })
+
+print(f"\nDone! Results written to {OUTFILE_CSV}\n")
     
 

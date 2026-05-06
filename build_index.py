@@ -38,7 +38,18 @@ resp = es.search(
     index=ES_INDEX,
     scroll=SCROLL_TTL,
     size=SCROLL_SIZE,
-    body={"query": {"match_all": {}}, "_source": ["id", "Title", "Abstract"]},
+    body={
+        "query": {
+            "bool": {
+                "filter": [
+                    {"term": {"NeedsAttention": False}},
+                    {"term": {"IsDraft": False}},
+                    {"term": {"IsDeleted": False}},
+                ]
+            }
+        },
+        "_source": ["id", "Title", "Abstract"],
+    },
 )
 scroll_id = resp["_scroll_id"]
 

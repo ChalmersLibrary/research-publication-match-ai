@@ -4,5 +4,5 @@ ES_PW=elastic_password
 ES_INDEX=publications-test
 OUTFILE_CSV=results.csv
 QUERY=maritime marine shipping seafood aquaculture blue bioeconomy ocean currents wrecks ships boats
-FETCH_FIELDS = Id,Title,IdentifierDoi[0],Year,PublicationType.NameEng
+FETCH_FIELDS=Id,Title,IdentifierDoi[0],Year,PublicationType.NameEng
 START_YEAR=2020

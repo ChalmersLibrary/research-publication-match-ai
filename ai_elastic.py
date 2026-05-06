@@ -121,10 +121,10 @@ class HybridRetriever:
             "_source": list(fields),
             "size": 1,
         }
-        print(f"[fetch_record] doc_id={doc_id!r}  query={body['query']}")
+        """ print(f"[fetch_record] doc_id={doc_id!r}  query={body['query']}") """
         response = self.es.search(index=self.es_index, body=body)
         hits = response["hits"]["hits"]
-        print(f"[fetch_record] total hits={response['hits']['total']}  returned={len(hits)}")
+        """ print(f"[fetch_record] total hits={response['hits']['total']}  returned={len(hits)}")
         if hits:
-            print(f"[fetch_record] _id={hits[0]['_id']}  _source keys={list(hits[0]['_source'].keys())}")
+            print(f"[fetch_record] _id={hits[0]['_id']}  _source keys={list(hits[0]['_source'].keys())}") """
         return hits[0]["_source"] if hits else None
