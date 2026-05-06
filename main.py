@@ -98,7 +98,7 @@ retriever = HybridRetriever(
 
 # Retrieve results with both methods, combine them with RRF and write to file
 
-results = retriever.search(QUERY, top_k=50)
+results = retriever.search(QUERY, top_k=5000)
 
 CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Year", "PublicationType.NameEng"]
 OUTFILE_CSV = os.environ.get('OUTFILE_CSV', "results") + f".{datetime.now().strftime('%Y%m%d.%H%M%S')}.csv"
@@ -119,6 +119,7 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
         record = retriever.fetch_record(r["doc_id"], fields=es_fields) or {}
         # Only include publications from the specified publication year onward (e.g. 2018-)
         if (record.get('Year') or 0) < int(os.environ.get("START_YEAR", 2014)):
+            print(f"  Skipping record!")
             continue
         writer.writerow({
             **{f: _get_nested(record, f) for f in CSV_FIELDS},

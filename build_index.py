@@ -33,7 +33,7 @@ print(f"[build] loading embedding model: {EMBEDDING_MODEL}")
 model = SentenceTransformer(EMBEDDING_MODEL)
 
 # Scroll all documents from ES
-print("[build] scrolling documents from ES ...")
+print("[build] scrolling documents from ES...")
 resp = es.search(
     index=ES_INDEX,
     scroll=SCROLL_TTL,
