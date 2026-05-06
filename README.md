@@ -26,7 +26,7 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
     - ES_PW - elasticsearch password   
     - ES_INDEX - name of the elastic index (eg. *research-publications-static-20260101*)   
     - OUTFILE_CSV - name of output CSV file (default: *results*)    
-    - QUERY - query string (keywords, comma separated) to be used, eg. *maritime marine shipping seafood aquaculture blue bioeconomy ocean currents*
+    - QUERY - query string (keywords, space separated) to be used, eg. *maritime marine shipping seafood aquaculture blue bioeconomy ocean currents*
     - FETCH_FIELDS - fields that should be retrieved from Chalmers CRIS, eg. *Id,Title,IdentifierDoi[0],Year,PublicationType.NameEng*   
     - START_YEAR - only include publications from this year forwards (default: *2014*)        
 
