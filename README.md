@@ -17,7 +17,7 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
 - Install working library for Elasticsearch 6.x (for compability)    
 ``pip install elasticsearch-7.16.3``    
 
-- Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while, must be re-run if the ES index content change)       
+- Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while, must be re-run if the ES index content change, but not if just modifying the query or search filters)       
 ``python build_index.py``   
 
 - Create an **.env** file with local settings, using *env_example* as template (note the format of the examples):    
