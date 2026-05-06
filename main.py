@@ -1,7 +1,29 @@
+import datetime
 import os
+import csv
+import re
 from dotenv import load_dotenv
+from datetime import datetime
 from elasticsearch import Elasticsearch
 from ai_elastic import HybridRetriever
+
+def _get_nested(d, dotted_key):
+    """Traverse a nested dict/list using a dot-separated key.
+    Supports array indexing: 'IdentifierDoi[0]' or 'Authors[0].Name'.
+    """
+    for part in dotted_key.split("."):
+        m = re.fullmatch(r"(\w+)\[(\d+)\]", part)
+        if m:
+            key, idx = m.group(1), int(m.group(2))
+            if not isinstance(d, dict):
+                return ""
+            lst = d.get(key, [])
+            d = lst[idx] if isinstance(lst, list) and idx < len(lst) else ""
+        else:
+            if not isinstance(d, dict):
+                return ""
+            d = d.get(part, "")
+    return d
 
 # Use as python main.py to run the search demo. Make sure to set up your .env file with the appropriate ES connection details and index name.
 # Regs:
@@ -32,7 +54,8 @@ except Exception as e:
     print(f"[debug] ES connection failed: {e}")
     raise
 
-QUERY = "maritime marine shipping seafood aquaculture blue bioeconomy ocean currents wrecks ships boats"
+#QUERY = "maritime marine shipping seafood aquaculture blue bioeconomy ocean currents wrecks ships boats"
+QUERY = os.environ.get("QUERY")
 
 # --- Quick keyword-only smoke test, DEBUG ---
 # print(f"[debug] running keyword search for: {QUERY!r}")
@@ -46,12 +69,12 @@ QUERY = "maritime marine shipping seafood aquaculture blue bioeconomy ocean curr
 #     total_count = total["value"] if isinstance(total, dict) else total
 #     print(f"[debug] keyword hits: {total_count} total, showing top {len(hits)}")
 #     for h in hits:
-#         print(f"  score={h['_score']:.4f}  id={h['_source'].get('id')}  title={h['_source'].get('title') or h['_source'].get('Title')}")
+#         print(f"  score={h['_score']:.4f}  id={h['_source'].get('id')}  title={h['_source'].get('Title')}   pubyear={h['_source'].get('Year')}")
 # except Exception as e:
 #     print(f"[debug] keyword search failed: {e}")
 #     raise
 
-# --- Full hybrid search (requires publications.faiss + metadata.jsonl) ---
+# Full hybrid search (requires publications.faiss + metadata.jsonl) ---
 retriever = HybridRetriever(
     es_client=es,
     es_index=os.environ["ES_INDEX"],
@@ -59,13 +82,31 @@ retriever = HybridRetriever(
     metadata_path="metadata.jsonl"
 )
 
+# Retrieve results with both methods, combine them with RRF and write to file
+
 results = retriever.search(QUERY, top_k=50)
+
+CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Year", "PublicationType.NameEng"]
+OUTFILE_CSV = os.environ.get('OUTFILE_CSV', "results") + f".{datetime.now().strftime('%Y%m%d.%H%M%S')}.csv"
 
 print("RESULTS:")
 
-for r in results:
-    methods = ["keyword" if 0 in r["matched_methods"] else None,
-               "semantic" if 1 in r["matched_methods"] else None]
-    methods = [m for m in methods if m]
-    print(f"{r['doc_id']:20s} score={r['rrf_score']:.4f} via {'+'.join(methods)}")
-    #print(f"{r['doc_id']:20s} score={r['rrf_score']:.4f} via {'+'.join(methods)}  {r['title']}")
+with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
+    writer = csv.DictWriter(csvfile, CSV_FIELDS + ["rrf_score", "matched_methods"])
+    writer.writeheader()
+
+    for r in results:
+        methods = ["keyword" if 0 in r["matched_methods"] else None,
+                   "semantic" if 1 in r["matched_methods"] else None]
+        methods = [m for m in methods if m]
+        print(f"{r['doc_id']:20s} score={r['rrf_score']:.4f} via {'+'.join(methods)}")
+
+        es_fields = list(dict.fromkeys(re.sub(r"\[\d+\]", "", f) for f in CSV_FIELDS))
+        record = retriever.fetch_record(r["doc_id"], fields=es_fields) or {}
+        writer.writerow({
+            **{f: _get_nested(record, f) for f in CSV_FIELDS},
+            "rrf_score": round(r["rrf_score"], 6),
+            "matched_methods": "+".join(methods),
+        })
+    
+

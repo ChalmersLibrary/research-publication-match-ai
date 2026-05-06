@@ -1,7 +1,10 @@
+import os
+
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 import json
+from dotenv import load_dotenv
 from collections import defaultdict
 
 # Hybrid Retrieval: Combining ES Keyword Scores with FAISS Semantic Scores
@@ -26,10 +29,17 @@ class HybridRetriever:
         """Returns list of (doc_id, rank) tuples from ES."""
         body = {
             "query": {
-                "multi_match": {
-                    "query": query_text,
-                    "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"],
-                    "type": "best_fields"
+                "bool": {
+                    "must": {
+                        "multi_match": {
+                            "query": query_text,
+                            "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"],
+                            "type": "best_fields"
+                        }
+                    },
+                    "filter": {
+                        "range": {"Year": {"gte": os.environ.get("START_YEAR", 2014)}}
+                    }
                 }
             },
             "size": top_k,
@@ -100,3 +110,21 @@ class HybridRetriever:
             weights=list(weights)
         )
         return fused[:top_k]
+
+    def fetch_record(self, doc_id, fields=None):
+        if fields is None:
+            env_val = os.environ.get("FETCH_FIELDS")
+            fields = env_val.split(",") if env_val else ("Id", "Title", "Year")
+        """Fetch selected fields for a single doc_id. Returns a dict or None."""
+        body = {
+            "query": {"term": {"Id": doc_id}},
+            "_source": list(fields),
+            "size": 1,
+        }
+        print(f"[fetch_record] doc_id={doc_id!r}  query={body['query']}")
+        response = self.es.search(index=self.es_index, body=body)
+        hits = response["hits"]["hits"]
+        print(f"[fetch_record] total hits={response['hits']['total']}  returned={len(hits)}")
+        if hits:
+            print(f"[fetch_record] _id={hits[0]['_id']}  _source keys={list(hits[0]['_source'].keys())}")
+        return hits[0]["_source"] if hits else None

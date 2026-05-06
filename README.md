@@ -12,9 +12,9 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
 ### Setup   
 
 - Install python libraries    
-``pip install faiss-cpu sentence-transformers python-dotenv peft``    
+``pip install faiss-cpu sentence-transformers python-dotenv peft os csv re``    
 
-- Install working library for Elasticsearch 6.x    
+- Install working library for Elasticsearch 6.x (for compability)    
 ``pip install elasticsearch-7.16.3``    
 
 - Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while, must be re-run if the ES index content change)       
@@ -22,14 +22,24 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
 
 - Edit *main.py* and add relevant keywords in the **QUERY** param
 
-- Create an **.env** file with local settings, using *env_example* as template 
+- Create an **.env** file with local settings, using *env_example* as template:    
+    - ES_URL - elasticsearch base URL   
+    - ES_UID - elasticsearch User ID   
+    - ES_PW - elasticsearch password   
+    - ES_INDEX - name of the ES index (eg. *research-publications-static-20260101*)   
+    - OUTFILE_CSV - name of output CSV file (default: results)    
+    - QUERY - query string (keywords) to be used, eg. *maritime marine shipping seafood aquaculture*
+    - FETCH_FIELDS - fields that should be retrieved from Chalmers CRIS, eg. *Id,Title,IdentifierDoi[0],Year,PublicationType.NameEng*   
+    - START_YEAR - only include publications from this year forwards (default: *2014*)        
 
 - Run the script    
 ``python main.py``   
 
-### Output    
+### Output  
 
-The current version only return the top 50 hits, with publication ID, ranking score and method (keyword and/or semantic). This can be changed inside the script.   
+The output is written to a local CSV file in the current directory (see *main.py* for details and adjust if needed). File name is specified in the *.env* file (default: results.YYYYMMDD.hhmmss.csv).   
+
+The current (proof of concept) version only return the top 50 hits, with Publication ID, Title, DOI, Year, Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script.   
 
 ### Known issues     
 
