@@ -17,7 +17,7 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
 - Install working library for Elasticsearch 6.x (for compability)    
 ``pip install elasticsearch-7.16.3``    
 
-- Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while, must be re-run if the ES index content change, but not if just modifying the query or search filters)       
+- Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while and must be re-run if the ES index content changes, but not if just modifying the query or search filters)       
 ``python build_index.py``   
 
 - Create an **.env** file with local settings, using *env_example* as template (note the format of the examples):    
@@ -37,7 +37,7 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
 
 The output is written to a local CSV file in the current directory (see *main.py* for details and adjust if needed). File name is specified in the *.env* file (default: results.YYYYMMDD.hhmmss.csv).   
 
-The current (proof of concept) version only return the top 50 hits, with Publication ID, Title, DOI, Year, Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script.   
+The current (proof of concept) version only return 50 hits, with Publication ID, Title, DOI, Year, Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script.   
 
 Most warnings can be safely ignored as long as the script finishes without crashing.   
 
