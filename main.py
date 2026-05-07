@@ -56,37 +56,36 @@ except Exception as e:
 
 #QUERY = "maritime marine shipping seafood aquaculture blue bioeconomy ocean currents wrecks ships boats"
 QUERY = os.environ.get("QUERY")
+SEARCH_MODE = os.environ.get("SEARCH_MODE", "hybrid")
 
 # --- Quick keyword-only smoke test, DEBUG ---
-print(f"[debug] running keyword search for: {QUERY!r}")
-try:
-    resp = es.search(
-        index=os.environ["ES_INDEX"],
-        body={
-            "query": {
-                "bool": {
-                    "must": {"multi_match": {"query": QUERY, "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"]}},
-                    "filter": [
-                        {"range": {"Year": {"gte": os.environ.get("START_YEAR", 2014)}}},
-                        {"term": {"NeedsAttention": False}},
-                        {"term": {"IsDraft": False}},
-                        {"term": {"IsDeleted": False}},
-                    ],
-                }
+if SEARCH_MODE != "semantic":
+    print(f"[debug] running keyword search for: {QUERY!r}")
+    try:
+        resp = es.search(
+            index=os.environ["ES_INDEX"],
+            body={
+                "query": {
+                    "bool": {
+                        "must": {"multi_match": {"query": QUERY, "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"]}},
+                        "filter": [
+                            {"range": {"Year": {"gte": os.environ.get("START_YEAR", 2014)}}},
+                            {"term": {"NeedsAttention": False}},
+                            {"term": {"IsDraft": False}},
+                            {"term": {"IsDeleted": False}},
+                        ],
+                    }
+                },
+                "size": 5,
             },
-            "size": 5,
-        },
-    )
-    hits = resp["hits"]["hits"]
-    total = resp["hits"]["total"]
-    total_count = total["value"] if isinstance(total, dict) else total
-    print(f"\n[debug] keyword hits: {total_count} in total.\n")
-    #print(f"[debug] keyword hits: {total_count} total, showing top {len(hits)}")
-    """ for h in hits:
-        print(f"  score={h['_score']:.4f}  id={h['_source'].get('id')}  title={h['_source'].get('Title')}   pubyear={h['_source'].get('Year')}") """
-except Exception as e:
-    print(f"[debug] keyword search failed: {e}")
-    raise
+        )
+        hits = resp["hits"]["hits"]
+        total = resp["hits"]["total"]
+        total_count = total["value"] if isinstance(total, dict) else total
+        print(f"\n[debug] keyword hits: {total_count} in total.\n")
+    except Exception as e:
+        print(f"[debug] keyword search failed: {e}")
+        raise
 
 # Full hybrid search (requires publications.faiss + metadata.jsonl) ---
 retriever = HybridRetriever(
@@ -98,7 +97,7 @@ retriever = HybridRetriever(
 
 # Retrieve results with both methods, combine them with RRF and write to file
 
-results = retriever.search(QUERY, top_k=5000)
+results = retriever.search(QUERY, top_k=5000, mode=SEARCH_MODE)
 
 CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Year", "PublicationType.NameEng"]
 OUTFILE_CSV = os.environ.get('OUTFILE_CSV', "results") + f".{datetime.now().strftime('%Y%m%d.%H%M%S')}.csv"

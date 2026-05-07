@@ -96,15 +96,29 @@ class HybridRetriever:
         ]
     
     def search(self, query_text, top_k=5000, candidates_per_method=os.environ.get("POOL_SIZE", 500),
-               weights=(1.0, 1.0)):
+               weights=(1.0, 1.0), mode="hybrid"):
         """
-        Hybrid search: retrieve from both, fuse, return top_k.
-        
-        weights: (keyword_weight, semantic_weight)
+        Search publications.
+
+        mode: "hybrid" (default) — keyword + semantic via RRF
+              "semantic"         — semantic only (no ES keyword search)
+              "keyword"          — keyword only (no FAISS)
+        weights: (keyword_weight, semantic_weight) — only used in hybrid mode
         """
+        if mode == "semantic":
+            sem_results = self.semantic_search(query_text, top_k=top_k)
+            return [
+                {"doc_id": doc_id, "rrf_score": score,
+                 "matched_methods": [1], "title": ""}
+                for doc_id, _, score in sem_results
+            ]
+
+        if mode == "keyword":
+            kw_results = self.keyword_search(query_text, top_k=top_k)
+            return self.reciprocal_rank_fusion([kw_results], weights=[1.0])[:top_k]
+
         kw_results = self.keyword_search(query_text, top_k=candidates_per_method)
         sem_results = self.semantic_search(query_text, top_k=candidates_per_method)
-        
         fused = self.reciprocal_rank_fusion(
             [kw_results, sem_results],
             weights=list(weights)

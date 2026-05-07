@@ -1,7 +1,9 @@
 # research-publication-match-ai
 
 App for locating publications within specific subject(s) and/or matching other criteria in [Chalmers Research CRIS](https://research.chalmers.se), by querying both ES for keyword hits and vector store for semantic hits — and then merge the results with combined rankings (reciprocal rank fusion).     
-Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter2](https://huggingface.co/allenai/specter2) model for embeddings.    
+Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter2](https://huggingface.co/allenai/specter2) model for embeddings.   
+    
+It is also possible to run a semantic or keyword search only. See SEARCH_MODE in *Setup and run* below.     
 
 ### Requirements  
 
@@ -15,7 +17,7 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
 - Install python libraries    
 ``pip install faiss-cpu sentence-transformers python-dotenv peft os csv re``    
 
-- Install working library for Elasticsearch 6.x (for compability)    
+- Install a working library for Elasticsearch 6.x (for compability)    
 ``pip install elasticsearch-7.16.3``
 
 - Create an **.env** file with local settings, in the current directory, using *env_example* as template (note the format of the examples):    
@@ -27,7 +29,8 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
     - QUERY - query string (keywords, space separated) to be used, eg. *maritime marine shipping seafood aquaculture blue bioeconomy ocean currents*
     - FETCH_FIELDS - fields that should be retrieved from Chalmers CRIS, eg. *Id,Title,IdentifierDoi[0],Year,PublicationType.NameEng*   
     - START_YEAR - only include publications from this year forwards (default: *2014*)
-    - POOL_SIZE - how many publication records should be handled at a time in each pool when searching (keyword, semantic). Setting this to 1000+ could cause timeout errors. (Default: *500*)          
+    - POOL_SIZE - how many publication records should be handled at a time in each pool when searching (keyword, semantic). Setting this to 1000+ could cause timeout errors. (default: *500*)   
+    - SEARCH_MODE - *hybrid* (both keyword and semantic search, with RRF), *semantic* (only) or *keyword* (only). (default: *hybrid*)       
 
 - Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while and must be re-run if the ES index content changes, but not if just modifying the query or search filters)       
 ``python build_index.py``   
