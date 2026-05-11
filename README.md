@@ -7,10 +7,10 @@ It is also possible to run a semantic or keyword search only. See SEARCH_MODE in
 
 ### Requirements  
 
-* Read access to an elasticsearch Chalmers research-publications index (please use a static index if possible, preferred both for indexing and performance)   
-* Python 3.x with required modules
+* Read access to an elasticsearch Chalmers research-publications index (use a static index if possible, preferred both for indexing and performance)   
+* Python 3.x with required modules:
     - FAISS, Sentence-transformers, Elasticsearch (<=7.16.3), Peft
-* A decent PC with at least 8 GB RAM and quadcore CPU (primarily for generating the vector store)        
+* A decent PC (Windows, Mac, Linux) with at least 8 GB RAM and a quadcore CPU (primarily for generating the vector store).            
 
 ### Setup and run   
 
@@ -27,7 +27,7 @@ It is also possible to run a semantic or keyword search only. See SEARCH_MODE in
     - ES_INDEX - name of the elastic index (eg. *research-publications-static-20260101*)   
     - OUTFILE_CSV - name of output CSV file (default: *results*)    
     - QUERY - query string (keywords, space separated) to be used, eg. *maritime marine shipping seafood aquaculture blue bioeconomy ocean currents*
-    - FETCH_FIELDS - fields that should be retrieved from Chalmers CRIS, eg. *Id,Title,IdentifierDoi[0],Year,PublicationType.NameEng*   
+    - FETCH_FIELDS - fields that should be retrieved from Chalmers CRIS and included in the output, eg. *Id,Title,IdentifierDoi[0],Year,PublicationType.NameEng*   
     - START_YEAR - only include publications from this year forwards (default: *2014*)
     - POOL_SIZE - how many publication records should be handled at a time in each pool when searching (keyword, semantic). Setting this to 1000+ could cause timeout errors. (default: *500*)   
     - SEARCH_MODE - *hybrid* (both keyword and semantic search, with RRF), *semantic* (only) or *keyword* (only). (default: *hybrid*)       
