@@ -48,7 +48,7 @@ resp = es.search(
                 ]
             }
         },
-        "_source": ["id", "Title", "Abstract"],
+        "_source": ["id", "Title", "Abstract", "Keywords"],
     },
 )
 scroll_id = resp["_scroll_id"]
@@ -64,6 +64,7 @@ while True:
             "id": src.get("id", h["_id"]),
             "title": src.get("Title", ""),
             "abstract": src.get("Abstract", ""),
+            "keywords": src.get("Keywords.Value", []),
         })
     print(f"[build]   fetched {len(docs)} docs so far ...", end="\r")
     resp = es.scroll(scroll_id=scroll_id, scroll=SCROLL_TTL)
