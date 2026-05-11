@@ -32,7 +32,7 @@ Queries are issued against the title, abstract, keyword and category (subject) f
     - QUERY - query string (keywords, space separated) to be used, eg. *maritime marine shipping seafood aquaculture blue bioeconomy ocean currents*
     - FETCH_FIELDS - fields that should be retrieved from Chalmers CRIS and included in the output, eg. *Id,Title,IdentifierDoi[0],Year,PublicationType.NameEng*   
     - START_YEAR - only include publications from this year forwards (default: *2014*)
-    - POOL_SIZE - how many publication records should be handled at a time in each pool when searching (keyword, semantic). Setting this to 1000+ could cause timeout errors. (default: *500*)   
+    - POOL_SIZE - how many publication records should be handled at a time in each pool when searching (keyword, semantic). Setting this too high could cause timeout errors. (default: *1000*)   
     - SEARCH_MODE - *hybrid* (both keyword and semantic search, with RRF), *semantic* (only) or *keyword* (only). (default: *hybrid*)       
 
 - Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while and must be re-run if the ES index content changes, but not if just modifying the query or search filters)       
@@ -45,7 +45,7 @@ Queries are issued against the title, abstract, keyword and category (subject) f
 
 The output is written to a local CSV file in the current directory (see *main.py* for details and adjust if needed). File name is specified in the *.env* file (default: results.YYYYMMDD.hhmmss.csv).   
 
-The current (proof of concept) version only return 50 hits, with Publication ID, Title, DOI, Year, Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script.   
+The current (proof of concept) version only return 50 hits, with Publication ID, Title, DOI, Year, Abstract (normalized), Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script.   
 
 Most warnings can be safely ignored as long as the script finishes without crashing.   
 

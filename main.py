@@ -1,4 +1,5 @@
 import datetime
+import html
 import os
 import csv
 import re
@@ -99,14 +100,15 @@ retriever = HybridRetriever(
 
 results = retriever.search(QUERY, top_k=5000, mode=SEARCH_MODE)
 
-CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Year", "PublicationType.NameEng"]
+CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Abstract", "Year", "PublicationType.NameEng"]
+CSV_HEADER = ["Id", "Title", "DOI", "Abstract", "Year", "PublicationType"]
 OUTFILE_CSV = os.environ.get('OUTFILE_CSV', "results") + f".{datetime.now().strftime('%Y%m%d.%H%M%S')}.csv"
 
 print(f"\nRESULTS:\n")
 
 with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
     writer = csv.DictWriter(csvfile, CSV_FIELDS + ["rrf_score", "matched_methods"])
-    writer.writeheader()
+    writer.writer.writerow(CSV_HEADER + ["RRF Score", "Matched Methods"])
 
     for r in results:
         methods = ["keyword" if 0 in r["matched_methods"] else None,
@@ -120,8 +122,19 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
         if (record.get('Year') or 0) < int(os.environ.get("START_YEAR", 2014)):
             print(f"  Skipping record!")
             continue
+        row = {f: _get_nested(record, f) for f in CSV_FIELDS}
+        # Clean title text for CSV output (remove HTML tags, unescape entities, normalize whitespace)
+        if row.get("Title"):
+            row["Title"] = re.sub(r"<[^>]+>", " ", row["Title"])
+            row["Title"] = html.unescape(row["Title"])
+            row["Title"] = re.sub(r"\s+", " ", row["Title"]).strip()
+        # Clean abstract text for CSV output (remove HTML tags, unescape entities, normalize whitespace)
+        if row.get("Abstract"):
+            abstract = re.sub(r"<[^>]+>", " ", row["Abstract"])
+            abstract = html.unescape(abstract)
+            row["Abstract"] = re.sub(r"\s+", " ", abstract).strip()
         writer.writerow({
-            **{f: _get_nested(record, f) for f in CSV_FIELDS},
+            **row,
             "rrf_score": round(r["rrf_score"], 6),
             "matched_methods": "+".join(methods),
         })
