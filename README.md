@@ -1,7 +1,8 @@
 # research-publication-match-ai
 
 App for locating publications within specific subject(s) and/or matching other criteria in [Chalmers Research CRIS](https://research.chalmers.se), by querying both ES for keyword hits and vector store for semantic hits — and then merge the results with combined rankings (reciprocal rank fusion).     
-Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter2](https://huggingface.co/allenai/specter2) model for embeddings.   
+
+Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter2_base](https://huggingface.co/allenai/specter2) model for embeddings.       
     
 It is also possible to run a semantic or keyword search only. See SEARCH_MODE in *Setup and run* below.    
 
@@ -10,19 +11,19 @@ Queries are issued against the title, abstract, keyword and category (subject) f
 ### Requirements  
 
 * Read access to an elasticsearch Chalmers research-publications index (use a static index if possible, preferred both for indexing and performance)   
-* Python 3.x with required modules:
-    - FAISS, Sentence-transformers, Elasticsearch (<=7.16.3), Peft
+* Python 3.x with required packages:
+    - FAISS, SentenceTransformer, Elasticsearch (<=7.16.3), Peft
 * A decent PC (Windows, Mac, Linux) with at least 8 GB RAM and a quadcore CPU (primarily for generating the vector store).            
 
 ### Setup and run   
 
-- Install python libraries    
-``pip install faiss-cpu sentence-transformers python-dotenv peft os csv re``    
+- Install python packages    
+``pip install faiss-cpu sentence_transformers python-dotenv peft os csv re``    
 
-- Install a working library for Elasticsearch 6.x (for compability)    
+- Install a working package for Elasticsearch 6.x (for compability)    
 ``pip install elasticsearch-7.16.3``
 
-- Create an **.env** file with local settings, in the current directory, using *env_example* as template (note the format of the examples):    
+- Create an **.env** file with local settings, in the current directory, using *env_example* as template (note the format of the examples in this file):    
     - ES_URL - elasticsearch base URL   
     - ES_UID - elasticsearch user ID   
     - ES_PW - elasticsearch password   
@@ -54,3 +55,8 @@ Most warnings can be safely ignored as long as the script finishes without crash
 Using elasticsearch-7.16.3 should work (required for ES 6).
 * Encoding errors (Linux only?) can be handled by running this script as: 
 PYTHONIOENCODING=utf-8 python main.py
+
+### Todo    
+
+* Use [Specter2 Adapters](https://huggingface.co/allenai/specter2_base), to get slightly higher accuracy in the semantic searches. Adapters has been trained on the [SciRepEval dataset](https://huggingface.co/datasets/allenai/scirepeval), but does not currently work with Python 3.13+ and (or?) MacOS (python *adapters* library incompability).    
+* Add more query filters  
