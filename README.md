@@ -3,7 +3,9 @@
 App for locating publications within specific subject(s) and/or matching other criteria in [Chalmers Research CRIS](https://research.chalmers.se), by querying both ES for keyword hits and vector store for semantic hits — and then merge the results with combined rankings (reciprocal rank fusion).     
 Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter2](https://huggingface.co/allenai/specter2) model for embeddings.   
     
-It is also possible to run a semantic or keyword search only. See SEARCH_MODE in *Setup and run* below.     
+It is also possible to run a semantic or keyword search only. See SEARCH_MODE in *Setup and run* below.    
+
+Queries are issued against the title, abstract, keyword and category (subject) fields. This (and other things) can be changed inside the script.    
 
 ### Requirements  
 
