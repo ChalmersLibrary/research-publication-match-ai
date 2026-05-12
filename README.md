@@ -1,7 +1,6 @@
 # research-publication-match-ai
 
 App for locating publications within specific subject(s) and/or matching other criteria in [Chalmers Research CRIS](https://research.chalmers.se), by querying both ES for keyword hits and vector store for semantic hits — and then merge the results with combined rankings (reciprocal rank fusion).     
-
 Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter2_base](https://huggingface.co/allenai/specter2) model for embeddings.       
     
 It is also possible to run a semantic or keyword search only. See SEARCH_MODE in *Setup and run* below.    
@@ -43,9 +42,9 @@ Queries are issued against the title, abstract, keyword and category (subject) f
 
 ### Output  
 
-The output is written to a local CSV file in the current directory (see *main.py* for details and adjust if needed). File name is specified in the *.env* file (default: results.YYYYMMDD.hhmmss.csv).   
+The output is written to a local CSV file in the current directory (see *main.py* for details and adjust if needed). File name is specified in the *.env* file (default: *results[.YYYYMMDD.hhmmss.csv]*).   
 
-The current (proof of concept) version only return 50 hits, with Publication ID, Title, DOI, Year, Abstract (normalized), Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script.   
+The current (proof of concept) version return Publication ID, Title, DOI, Year, Abstract (normalized), Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script. The total number of records returned can be changed by using POOL_SIZE (see *Setup and run*).        
 
 Most warnings can be safely ignored as long as the script finishes without crashing.   
 
