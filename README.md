@@ -29,7 +29,7 @@ Queries are issued against the title, abstract, keyword and category (subject) f
     - ES_INDEX - name of the elastic index (eg. *research-publications-static-20260101*)   
     - OUTFILE_CSV - name of output CSV file (default: *results*)    
     - QUERY - query string (keywords, space separated) to be used, eg. *maritime marine shipping seafood aquaculture blue bioeconomy ocean currents*
-    - FETCH_FIELDS - fields that should be retrieved from Chalmers CRIS and included in the output, eg. *Id,Title,IdentifierDoi[0],Year,PublicationType.NameEng*   
+    - FETCH_FIELDS - fields that should be retrieved from Chalmers CRIS and included in the output, eg. *Id,Title,IdentifierDoi[0],Year,Abstract,PublicationType.NameEng*   
     - START_YEAR - only include publications from this year forwards (default: *2014*)
     - POOL_SIZE - how many publication records should be handled at a time in each pool when searching (keyword, semantic). Setting this too high could cause timeout errors. (default: *1000*)   
     - SEARCH_MODE - *hybrid* (both keyword and semantic search, with RRF), *semantic* (only) or *keyword* (only). (default: *hybrid*)       
