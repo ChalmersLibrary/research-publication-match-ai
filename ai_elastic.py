@@ -95,7 +95,7 @@ class HybridRetriever:
             for doc_id, score in ranked
         ]
     
-    def search(self, query_text, top_k=5000, candidates_per_method=os.environ.get("POOL_SIZE", 1000),
+    def search(self, query_text, top_k=5000, candidates_per_method=os.environ.get("POOL_SIZE", 2000),
                weights=(1.0, 1.0), mode="hybrid"):
         """
         Search publications.
@@ -124,6 +124,26 @@ class HybridRetriever:
             weights=list(weights)
         )
         return fused[:top_k]
+
+    def fetch_records(self, doc_ids, fields=None, chunk_size=200):
+        """Fetch selected fields for multiple doc_ids using batched terms queries.
+        Returns a dict keyed by Id value."""
+        if fields is None:
+            env_val = os.environ.get("FETCH_FIELDS")
+            fields = env_val.split(",") if env_val else ("Id", "Title", "Year")
+        results = {}
+        for i in range(0, len(doc_ids), chunk_size):
+            chunk = doc_ids[i:i + chunk_size]
+            body = {
+                "query": {"terms": {"Id": chunk}},
+                "_source": list(fields),
+                "size": chunk_size,
+            }
+            response = self.es.search(index=self.es_index, body=body)
+            for hit in response["hits"]["hits"]:
+                src = hit["_source"]
+                results[src.get("Id")] = src
+        return results
 
     def fetch_record(self, doc_id, fields=None):
         if fields is None:

@@ -11,11 +11,23 @@ from ai_elastic import HybridRetriever
 def _get_nested(d, dotted_key):
     """Traverse a nested dict/list using a dot-separated key.
     Supports array indexing: 'IdentifierDoi[0]' or 'Authors[0].Name'.
+    Supports wildcard: 'Persons[*].PersonData.DisplayName' collects all values joined by ';'.
     """
-    for part in dotted_key.split("."):
-        m = re.fullmatch(r"(\w+)\[(\d+)\]", part)
-        if m:
-            key, idx = m.group(1), int(m.group(2))
+    parts = dotted_key.split(".")
+    for i, part in enumerate(parts):
+        m_all = re.fullmatch(r"(\w+)\[\*\]", part)
+        m_idx = re.fullmatch(r"(\w+)\[(\d+)\]", part)
+        if m_all:
+            if not isinstance(d, dict):
+                return ""
+            lst = d.get(m_all.group(1), [])
+            if not isinstance(lst, list):
+                return ""
+            remaining = ".".join(parts[i + 1:])
+            values = [_get_nested(item, remaining) for item in lst] if remaining else lst
+            return ";".join(str(v) for v in values if v)
+        elif m_idx:
+            key, idx = m_idx.group(1), int(m_idx.group(2))
             if not isinstance(d, dict):
                 return ""
             lst = d.get(key, [])
@@ -44,6 +56,7 @@ load_dotenv()
 es = Elasticsearch(
     [os.environ["ES_URL"]],
     http_auth=(os.environ["ES_UID"], os.environ["ES_PW"]) if os.environ.get("ES_UID") else None,
+    timeout=120,
 )
 
 # --- ES connection check ---
@@ -100,8 +113,8 @@ retriever = HybridRetriever(
 
 results = retriever.search(QUERY, top_k=5000, mode=SEARCH_MODE)
 
-CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Abstract", "Year", "PublicationType.NameEng"]
-CSV_HEADER = ["Id", "Title", "DOI", "Abstract", "Year", "PublicationType"]
+CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Persons[*].PersonData.DisplayName", "Abstract", "Year", "PublicationType.NameEng"]
+CSV_HEADER = ["Id", "Title", "DOI", "Authors", "Abstract", "Year", "PublicationType"]
 OUTFILE_CSV = os.environ.get('OUTFILE_CSV', "results") + f".{datetime.now().strftime('%Y%m%d.%H%M%S')}.csv"
 
 print(f"\nRESULTS:\n")
@@ -110,14 +123,18 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
     writer = csv.DictWriter(csvfile, CSV_FIELDS + ["rrf_score", "matched_methods"])
     writer.writer.writerow(CSV_HEADER + ["RRF Score", "Matched Methods"])
 
+    es_fields = list(dict.fromkeys(re.sub(r"\[(?:\d+|\*)\]", "", f) for f in CSV_FIELDS))
+    all_doc_ids = [r["doc_id"] for r in results]
+    print(f"Fetching {len(all_doc_ids)} records from ES...")
+    records_by_id = retriever.fetch_records(all_doc_ids, fields=es_fields)
+
     for r in results:
         methods = ["keyword" if 0 in r["matched_methods"] else None,
                    "semantic" if 1 in r["matched_methods"] else None]
         methods = [m for m in methods if m]
         print(f"{r['doc_id']:20s} score={r['rrf_score']:.4f} via {'+'.join(methods)}")
 
-        es_fields = list(dict.fromkeys(re.sub(r"\[\d+\]", "", f) for f in CSV_FIELDS))
-        record = retriever.fetch_record(r["doc_id"], fields=es_fields) or {}
+        record = records_by_id.get(r["doc_id"]) or {}
         # Only include publications from the specified publication year onward (e.g. 2018-)
         if (record.get('Year') or 0) < int(os.environ.get("START_YEAR", 2014)):
             print(f"  Skipping record!")
