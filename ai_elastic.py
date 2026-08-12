@@ -25,7 +25,7 @@ class HybridRetriever:
         # Load embedding model (must match what built the index)
         self.model = SentenceTransformer(embedding_model)
     
-    def keyword_search(self, query_text, top_k=5000):
+    def keyword_search(self, query_text, top_k):
         """Returns list of (doc_id, rank) tuples from ES."""
         body = {
             "query": {
@@ -50,7 +50,7 @@ class HybridRetriever:
             for rank, hit in enumerate(response["hits"]["hits"], start=1)
         ]
     
-    def semantic_search(self, query_text, top_k=5000):
+    def semantic_search(self, query_text, top_k):
         """Returns list of (doc_id, rank, score) tuples from FAISS."""
         query_vec = self.model.encode([query_text]).astype("float32")
         faiss.normalize_L2(query_vec)

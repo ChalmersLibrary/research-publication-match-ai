@@ -31,7 +31,8 @@ Queries are issued against the title, abstract, keyword and category (subject) f
     - QUERY - query string (keywords, space separated) to be used, eg. *maritime marine shipping seafood aquaculture blue bioeconomy ocean currents wrecks*
     - FETCH_FIELDS - fields that should be retrieved from Chalmers CRIS and included in the output, eg. *Id,Title,IdentifierDoi[0],Authors,Abstract,Year,PublicationType.NameEng*   
     - START_YEAR - only include publications from this year forwards (default: *2014*)
-    - POOL_SIZE - how many publication records should be handled at a time in each pool when searching (keyword, semantic). Setting this way too high could cause timeout errors. (default: *1000*)   
+    - POOL_SIZE - how many publication records (top candidates) should be retrieved from each pool when searching (keyword, semantic), before merging the results. Setting this way too high could cause timeout errors. (default: *1000* but can probably be set a lot higher)   
+    - MAX_RETURNED - max number of (merged) candidates returned.     
     - SEARCH_MODE - *hybrid* (both keyword and semantic search, with RRF), *semantic* (only) or *keyword* (only). (default: *hybrid*)       
 
 - Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while and must be re-run if the ES index content changes, but not if just modifying the query or search filters)       

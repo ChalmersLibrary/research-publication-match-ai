@@ -11,7 +11,7 @@ from ai_elastic import HybridRetriever
 def _get_nested(d, dotted_key):
     """Traverse a nested dict/list using a dot-separated key.
     Supports array indexing: 'IdentifierDoi[0]' or 'Authors[0].Name'.
-    Supports wildcard: 'Persons[*].PersonData.DisplayName' collects all values joined by ';'.
+    Supports wildcard: 'Persons[*].PersonData.DisplayName' collects all values joined by ' ; '.
     """
     parts = dotted_key.split(".")
     for i, part in enumerate(parts):
@@ -25,7 +25,7 @@ def _get_nested(d, dotted_key):
                 return ""
             remaining = ".".join(parts[i + 1:])
             values = [_get_nested(item, remaining) for item in lst] if remaining else lst
-            return ";".join(str(v) for v in values if v)
+            return " ; ".join(str(v) for v in values if v)
         elif m_idx:
             key, idx = m_idx.group(1), int(m_idx.group(2))
             if not isinstance(d, dict):
@@ -71,6 +71,7 @@ except Exception as e:
 #QUERY = "maritime marine shipping seafood aquaculture blue bioeconomy ocean currents wrecks ships boats"
 QUERY = os.environ.get("QUERY")
 SEARCH_MODE = os.environ.get("SEARCH_MODE", "hybrid")
+MAX_RESULTS = int(os.environ.get("MAX_RESULTS", 5000))
 
 # --- Quick keyword-only smoke test, DEBUG ---
 if SEARCH_MODE != "semantic":
@@ -110,8 +111,7 @@ retriever = HybridRetriever(
 )
 
 # Retrieve results with both methods, combine them with RRF and write to file
-
-results = retriever.search(QUERY, top_k=5000, mode=SEARCH_MODE)
+results = retriever.search(QUERY, top_k=MAX_RESULTS, mode=SEARCH_MODE)
 
 CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Persons[*].PersonData.DisplayName", "Abstract", "Year", "PublicationType.NameEng"]
 CSV_HEADER = ["Id", "Title", "DOI", "Authors", "Abstract", "Year", "PublicationType"]
