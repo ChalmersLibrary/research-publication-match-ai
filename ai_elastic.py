@@ -31,10 +31,9 @@ class HybridRetriever:
             "query": {
                 "bool": {
                     "must": {
-                        "multi_match": {
+                        "simple_query_string": {
                             "query": query_text,
-                            "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"],
-                            "type": "best_fields"
+                            "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"]
                         }
                     },
                     "filter": {

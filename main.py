@@ -82,7 +82,7 @@ if SEARCH_MODE != "semantic":
             body={
                 "query": {
                     "bool": {
-                        "must": {"multi_match": {"query": QUERY, "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"]}},
+                        "must": {"simple_query_string": {"query": QUERY, "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"]}},
                         "filter": [
                             {"range": {"Year": {"gte": os.environ.get("START_YEAR", 2014)}}},
                             {"term": {"NeedsAttention": False}},
