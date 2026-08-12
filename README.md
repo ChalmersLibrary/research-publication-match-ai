@@ -20,7 +20,7 @@ Queries are issued against the title, abstract, keyword and category (subject) f
 ``pip install faiss-cpu sentence_transformers python-dotenv peft os csv re``    
 
 - Install a working package for Elasticsearch 6.x (for compability)    
-``pip install elasticsearch-7.16.3``
+``pip install "elasticsearch==7.16.3"``
 
 - Create an **.env** file with local settings, in the current directory, using *env_example* as template (note the format of the examples in this file):    
     - ES_URL - elasticsearch base URL   
