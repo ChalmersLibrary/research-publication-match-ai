@@ -5,11 +5,11 @@ Uses [FAISS](https://github.com/facebookresearch/faiss) and the [allenai/specter
     
 It is also possible to run a semantic or keyword search only. See SEARCH_MODE in *Setup and run* below.    
 
-Queries are issued against the title, abstract, keyword and category (subject) fields. This (and other things) can be changed inside the script.    
+Queries are issued against the Title, Abstract, Keyword and Category (subject) fields. This (and other things) can be changed inside the script. It is also possible to add other search filters, such as *Authors*.       
 
 ### Requirements  
 
-* Read access to an elasticsearch Chalmers research-publications index (use a static index if possible, preferred both for indexing and performance)   
+* Read access to an elasticsearch Chalmers research-publications index (use a static index if possible, preferred both for indexing and performance, especially if querying large data sets)   
 * Python 3.x with required packages:
     - FAISS, SentenceTransformer, Elasticsearch (<=7.16.3), Peft
 * A decent PC (Windows, Mac, Linux) with at least 8 GB RAM and quadcore CPU (primarily for generating the vector store).            
@@ -45,7 +45,7 @@ Queries are issued against the title, abstract, keyword and category (subject) f
 
 The output is written to a local CSV file in the current directory (see *main.py* for details and adjust if needed). File name is specified in the *.env* file (default: *results[.YYYYMMDD.hhmmss.csv]*).   
 
-The current (proof of concept) version return Publication ID, Title, DOI, Year, Author(s), Abstract (normalized), Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script. The total number of records returned can be changed by using POOL_SIZE (see *Setup and run*).        
+The current version return Publication ID, Title, DOI, Year, Author(s), Abstract (normalized), Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script. The total number of records returned can be changed by using POOL_SIZE (see *Setup and run*).        
 
 Most warnings can be safely ignored as long as the script finishes without crashing.   
 
@@ -55,8 +55,3 @@ Most warnings can be safely ignored as long as the script finishes without crash
 Using elasticsearch-7.16.3 should work (required for ES 6).
 * Encoding errors (Linux only?) can be handled by running this script as: 
 PYTHONIOENCODING=utf-8 python main.py
-
-### Todo    
-
-* Use [Specter2 Adapters](https://huggingface.co/allenai/specter2_base), to get slightly higher accuracy in the semantic searches. Adapters has been trained on the [SciRepEval dataset](https://huggingface.co/datasets/allenai/scirepeval), but does not currently work with Python 3.13+ and (or?) MacOS (python *adapters* library incompability).    
-* Add more query filters  
