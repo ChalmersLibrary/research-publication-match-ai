@@ -94,8 +94,8 @@ class HybridRetriever:
             for doc_id, score in ranked
         ]
     
-    def search(self, query_text, top_k=5000, candidates_per_method=os.environ.get("POOL_SIZE", 2000),
-               weights=(1.0, 1.0), mode="hybrid"):
+    def search(self, query_text, top_k=os.environ.get("MAX_RESULTS", 5000), candidates_per_method=os.environ.get("POOL_SIZE", 2000),
+               weights=(1.0, 1.0), mode=os.environ.get("SEARCH_MODE", "hybrid")):
         """
         Search publications.
 
