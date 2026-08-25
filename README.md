@@ -12,7 +12,7 @@ Queries are issued against the Title, Abstract, Keyword and Category (subject) f
 * Read access to an elasticsearch Chalmers research-publications index (use an offline, static index if possible, preferred both for indexing and performance, especially if querying large data sets)   
 * Python >=3.10 with required packages:
     - FAISS, SentenceTransformer, Elasticsearch (<=7.16.3), Peft
-* A decent PC (Windows, Mac, Linux) with at least 8 GB RAM and quadcore CPU (primarily for generating the vector store). Mac or Linux is preferred due to better GPU handling.               
+* A decent PC (Windows, Mac, Linux) with at least 8 GB RAM (16 GB preferred) and quadcore CPU (primarily for generating the vector store). Mac or Linux is preferred due to better GPU handling.               
 
 ### Setup and run   
 
