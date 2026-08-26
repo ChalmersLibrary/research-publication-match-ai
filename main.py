@@ -8,14 +8,38 @@ from datetime import datetime
 from elasticsearch import Elasticsearch
 from ai_elastic import HybridRetriever
 
+def _split_path(dotted_key):
+    """Split a dotted key on '.' while treating '[...]' as atomic, so a filter
+    expression like 'Type.Id=<uuid>' inside brackets isn't split on its own dot."""
+    parts = []
+    current = ""
+    depth = 0
+    for ch in dotted_key:
+        if ch == "[":
+            depth += 1
+            current += ch
+        elif ch == "]":
+            depth -= 1
+            current += ch
+        elif ch == "." and depth == 0:
+            parts.append(current)
+            current = ""
+        else:
+            current += ch
+    parts.append(current)
+    return parts
+
 def _get_nested(d, dotted_key):
     """Traverse a nested dict/list using a dot-separated key.
     Supports array indexing: 'IdentifierDoi[0]' or 'Authors[0].Name'.
     Supports wildcard: 'Persons[*].PersonData.DisplayName' collects all values joined by ' ; '.
+    Supports filtering: 'Categories[Type.Id=<uuid>].NameEng' collects values only from array
+    items whose nested field matches the given value, joined by ' ; '.
     """
-    parts = dotted_key.split(".")
+    parts = _split_path(dotted_key)
     for i, part in enumerate(parts):
         m_all = re.fullmatch(r"(\w+)\[\*\]", part)
+        m_filter = re.fullmatch(r"(\w+)\[(\w+(?:\.\w+)*)=([^\]=]+)\]", part)
         m_idx = re.fullmatch(r"(\w+)\[(\d+)\]", part)
         if m_all:
             if not isinstance(d, dict):
@@ -25,6 +49,17 @@ def _get_nested(d, dotted_key):
                 return ""
             remaining = ".".join(parts[i + 1:])
             values = [_get_nested(item, remaining) for item in lst] if remaining else lst
+            return " ; ".join(str(v) for v in values if v)
+        elif m_filter:
+            key, filter_key, filter_val = m_filter.group(1), m_filter.group(2), m_filter.group(3)
+            if not isinstance(d, dict):
+                return ""
+            lst = d.get(key, [])
+            if not isinstance(lst, list):
+                return ""
+            matched = [item for item in lst if str(_get_nested(item, filter_key)) == filter_val]
+            remaining = ".".join(parts[i + 1:])
+            values = [_get_nested(item, remaining) for item in matched] if remaining else matched
             return " ; ".join(str(v) for v in values if v)
         elif m_idx:
             key, idx = m_idx.group(1), int(m_idx.group(2))
@@ -113,8 +148,9 @@ retriever = HybridRetriever(
 # Retrieve results with both methods, combine them with RRF and write to file
 results = retriever.search(QUERY, top_k=MAX_RESULTS, mode=SEARCH_MODE)
 
-CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Persons[*].PersonData.DisplayName", "Abstract", "Year", "PublicationType.NameEng"]
-CSV_HEADER = ["Id", "Title", "DOI", "Authors", "Abstract", "Year", "PublicationType"]
+CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Persons[*].PersonData.DisplayName", "Abstract", "Year", "PublicationType.NameEng",
+              "Categories[Type.Id=fba59577-7c91-4a65-9154-7fd8b630f81a].NameEng"]
+CSV_HEADER = ["Id", "Title", "DOI", "Authors", "Abstract", "Year", "PublicationType", "Chalmers AoA"]
 OUTFILE_CSV = os.environ.get('OUTFILE_CSV', "results") + f".{datetime.now().strftime('%Y%m%d.%H%M%S')}.csv"
 
 print(f"\nRESULTS:\n")
@@ -123,7 +159,14 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
     writer = csv.DictWriter(csvfile, CSV_FIELDS + ["rrf_score", "matched_methods"])
     writer.writer.writerow(CSV_HEADER + ["RRF Score", "Matched Methods"])
 
-    es_fields = list(dict.fromkeys(re.sub(r"\[(?:\d+|\*)\]", "", f) for f in CSV_FIELDS))
+    def _to_es_field(f):
+        # A filter bracket (e.g. 'Categories[Type.Id=...].NameEng') needs sibling
+        # fields (Type.Id) beyond the trailing subpath to survive the fetch, so
+        # request the whole base array instead of narrowing _source to NameEng.
+        m = re.search(r"\[[^\]]*=[^\]]*\]", f)
+        return f[:m.start()] if m else re.sub(r"\[[^\]]*\]", "", f)
+
+    es_fields = list(dict.fromkeys(_to_es_field(f) for f in CSV_FIELDS))
     all_doc_ids = [r["doc_id"] for r in results]
     print(f"Fetching {len(all_doc_ids)} records from ES...")
     records_by_id = retriever.fetch_records(all_doc_ids, fields=es_fields)
