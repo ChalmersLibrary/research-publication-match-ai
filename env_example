@@ -4,8 +4,10 @@ ES_PW=elastic_password
 ES_INDEX=publications-test
 OUTFILE_CSV=results
 QUERY=maritime marine shipping seafood aquaculture blue bioeconomy ocean currents wrecks ships boats
-FETCH_FIELDS=Id,Title,IdentifierDoi[0],Year,Abstract,PublicationType.NameEng,Categories[Type.Id=fba59577-7c91-4a65-9154-7fd8b630f81a].NameEng,Persons[*].PersonData.DisplayName
-START_YEAR=2020
+FETCH_FIELDS=Id,Title,IdentifierDoi[0],IdentifierScopusId[0],Year,Abstract,PublicationType.NameEng,Categories[Type.Id=fba59577-7c91-4a65-9154-7fd8b630f81a].NameEng,Persons[*].PersonData.DisplayName
+START_YEAR=2016
 POOL_SIZE=100
 MAX_RESULTS=1000
 SEARCH_MODE=hybrid   # hybrid (default) | semantic | keyword
+STATIC_QUERY=Categories.NameEng:"Materials Science"   # optional fixed ES query_string fused in as a third pool (hybrid mode only), to guarantee recall for a known category/filter regardless of QUERY relevance. Leave unset to disable.
+STATIC_WEIGHT=1.0   # RRF weight for the static pool (only used if STATIC_QUERY is set)

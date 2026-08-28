@@ -34,6 +34,8 @@ Queries are issued against the Title, Abstract, Keyword and Category (subject) f
     - POOL_SIZE - how many publication records (top candidates) should be retrieved from each pool when searching (keyword, semantic), before merging the results. Setting this way too high could cause timeout errors. (default: *1000* but can probably be set a lot higher)   
     - MAX_RETURNED - max number of (merged) candidates returned.     
     - SEARCH_MODE - *hybrid* (both keyword and semantic search, with RRF), *semantic* (only) or *keyword* (only). (default: *hybrid*)       
+    - STATIC_QUERY - optional fixed ES `query_string` (eg. `Categories.NameEng:"Materials Science"`), fused in as a third RRF pool alongside keyword and semantic (hybrid mode only). Unlike QUERY, it does not need to be relevant to the free-text search - it guarantees recall for a known category/filter. Leave unset to disable.    
+    - STATIC_WEIGHT - RRF weight for the static pool, only used if STATIC_QUERY is set. (default: *1.0*)   
 
 - Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while and must be re-run if the ES index content changes, but not if just modifying the query or search filters)       
 ``python build_index.py``   
@@ -45,7 +47,7 @@ Queries are issued against the Title, Abstract, Keyword and Category (subject) f
 
 The output is written to a local CSV file in the current directory (see *main.py* for details and adjust if needed). File name is specified in the *.env* file (default: *results[.YYYYMMDD.hhmmss.csv]*).   
 
-The current version return Publication ID, Title, DOI, Year, Author(s), Abstract (normalized), Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script. The total number of records returned can be changed by using POOL_SIZE (see *Setup and run*).        
+The current version return Publication ID, Title, DOI, Scopus EID, Year, Author(s), Abstract (normalized), Publication Type, Ranking score and Method (keyword and/or semantic). This can be changed inside the script. The total number of records returned can be changed by using POOL_SIZE (see *Setup and run*).        
 
 Most warnings can be safely ignored as long as the script finishes without crashing.   
 

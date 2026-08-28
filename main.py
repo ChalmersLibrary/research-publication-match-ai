@@ -31,8 +31,9 @@ def _split_path(dotted_key):
 
 def _get_nested(d, dotted_key):
     """Traverse a nested dict/list using a dot-separated key.
-    Supports array indexing: 'IdentifierDoi[0]' or 'Authors[0].Name'.
+    Supports array indexing: 'IdentifierDoi[0]' or 'IdentifierScopusId[0] or 'Authors[0].Name'.
     Supports wildcard: 'Persons[*].PersonData.DisplayName' collects all values joined by ' ; '.
+    'Persons[*].PersonData.IdentifierCid[0]' collects all values joined by ' ; '.
     Supports filtering: 'Categories[Type.Id=<uuid>].NameEng' collects values only from array
     items whose nested field matches the given value, joined by ' ; '.
     """
@@ -107,6 +108,8 @@ except Exception as e:
 QUERY = os.environ.get("QUERY")
 SEARCH_MODE = os.environ.get("SEARCH_MODE", "hybrid")
 MAX_RESULTS = int(os.environ.get("MAX_RESULTS", 5000))
+STATIC_QUERY = os.environ.get("STATIC_QUERY") or None
+STATIC_WEIGHT = float(os.environ.get("STATIC_WEIGHT", 1.0))
 
 # --- Quick keyword-only smoke test, DEBUG ---
 if SEARCH_MODE != "semantic":
@@ -145,12 +148,14 @@ retriever = HybridRetriever(
     metadata_path="metadata.jsonl"
 )
 
-# Retrieve results with both methods, combine them with RRF and write to file
-results = retriever.search(QUERY, top_k=MAX_RESULTS, mode=SEARCH_MODE)
+# Retrieve results with both methods (plus an optional static/predefined pool), combine them with RRF and write to file
+if STATIC_QUERY:
+    print(f"[debug] including static pool for: {STATIC_QUERY!r} (weight={STATIC_WEIGHT})")
+results = retriever.search(QUERY, top_k=MAX_RESULTS, mode=SEARCH_MODE, static_query=STATIC_QUERY, weights=(1.0, 1.0, STATIC_WEIGHT))
 
-CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "Persons[*].PersonData.DisplayName", "Abstract", "Year", "PublicationType.NameEng",
+CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "IdentifierScopusId[0]", "Persons[*].PersonData.DisplayName", "Persons[*].PersonData.IdentifierCid[0]", "Abstract", "Year", "PublicationType.NameEng",
               "Categories[Type.Id=fba59577-7c91-4a65-9154-7fd8b630f81a].NameEng"]
-CSV_HEADER = ["Id", "Title", "DOI", "Authors", "Abstract", "Year", "PublicationType", "Chalmers AoA"]
+CSV_HEADER = ["Id", "Title", "DOI", "Scopus ID", "Authors", "CID", "Abstract", "Year", "PublicationType", "Chalmers AoA"]
 OUTFILE_CSV = os.environ.get('OUTFILE_CSV', "results") + f".{datetime.now().strftime('%Y%m%d.%H%M%S')}.csv"
 
 print(f"\nRESULTS:\n")
@@ -173,7 +178,8 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
 
     for r in results:
         methods = ["keyword" if 0 in r["matched_methods"] else None,
-                   "semantic" if 1 in r["matched_methods"] else None]
+                   "semantic" if 1 in r["matched_methods"] else None,
+                   "static" if 2 in r["matched_methods"] else None]
         methods = [m for m in methods if m]
         print(f"{r['doc_id']:20s} score={r['rrf_score']:.4f} via {'+'.join(methods)}")
 
@@ -193,6 +199,11 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
             abstract = re.sub(r"<[^>]+>", " ", row["Abstract"])
             abstract = html.unescape(abstract)
             row["Abstract"] = re.sub(r"\s+", " ", abstract).strip()
+        # Scopus stores bare IDs, prefix with EID namespace so it matches Scopus's own EID format
+        if row.get("IdentifierScopusId[0]"):
+            row["IdentifierScopusId[0]"] = "2-s2.0-" + row["IdentifierScopusId[0]"]
+            
+        # Write the row to CSV with additional RRF score and matched methods
         writer.writerow({
             **row,
             "rrf_score": round(r["rrf_score"], 6),
@@ -200,5 +211,3 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
         })
 
 print(f"\nDone! Results written to {OUTFILE_CSV}\n")
-    
-

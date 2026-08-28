@@ -49,6 +49,30 @@ class HybridRetriever:
             for rank, hit in enumerate(response["hits"]["hits"], start=1)
         ]
     
+    def static_search(self, query_string, top_k):
+        """Returns list of (doc_id, rank, score, title) tuples from a fixed, predefined
+        ES query_string (eg. 'Categories.NameEng:"Materials Science"'), independent of the
+        free-text QUERY. Used to guarantee recall for a known category/filter even when its
+        members don't score well against the keyword/semantic pools."""
+        body = {
+            "query": {
+                "bool": {
+                    "must": {
+                        "query_string": {"query": query_string}
+                    },
+                    "filter": {
+                        "range": {"Year": {"gte": os.environ.get("START_YEAR", 2014)}}
+                    }
+                }
+            },
+            "size": top_k,
+        }
+        response = self.es.search(index=self.es_index, body=body)
+        return [
+            (hit["_source"].get("Id") or hit["_id"], rank, hit["_score"], hit["_source"].get("Title", ""))
+            for rank, hit in enumerate(response["hits"]["hits"], start=1)
+        ]
+
     def semantic_search(self, query_text, top_k):
         """Returns list of (doc_id, rank, score) tuples from FAISS."""
         query_vec = self.model.encode([query_text]).astype("float32")
@@ -95,14 +119,18 @@ class HybridRetriever:
         ]
     
     def search(self, query_text, top_k=os.environ.get("MAX_RESULTS", 5000), candidates_per_method=os.environ.get("POOL_SIZE", 2000),
-               weights=(1.0, 1.0), mode=os.environ.get("SEARCH_MODE", "hybrid")):
+               weights=(1.0, 1.0, 1.0), mode=os.environ.get("SEARCH_MODE", "hybrid"), static_query=None):
         """
         Search publications.
 
-        mode: "hybrid" (default) — keyword + semantic via RRF
+        mode: "hybrid" (default) — keyword + semantic (+ static, if given) via RRF
               "semantic"         — semantic only (no ES keyword search)
               "keyword"          — keyword only (no FAISS)
-        weights: (keyword_weight, semantic_weight) — only used in hybrid mode
+        weights: (keyword_weight, semantic_weight, static_weight) — only used in hybrid mode;
+                 static_weight is ignored unless static_query is given.
+        static_query: optional fixed ES query_string (eg. 'Categories.NameEng:"Materials Science"')
+                      fused in as a third pool, independent of query_text, to guarantee recall
+                      for a known category/filter (index 2 in each result's "matched_methods").
         """
         if mode == "semantic":
             sem_results = self.semantic_search(query_text, top_k=top_k)
@@ -118,10 +146,15 @@ class HybridRetriever:
 
         kw_results = self.keyword_search(query_text, top_k=candidates_per_method)
         sem_results = self.semantic_search(query_text, top_k=candidates_per_method)
-        fused = self.reciprocal_rank_fusion(
-            [kw_results, sem_results],
-            weights=list(weights)
-        )
+        result_lists = [kw_results, sem_results]
+        pool_weights = list(weights[:2])
+
+        if static_query:
+            static_results = self.static_search(static_query, top_k=candidates_per_method)
+            result_lists.append(static_results)
+            pool_weights.append(weights[2] if len(weights) > 2 else 1.0)
+
+        fused = self.reciprocal_rank_fusion(result_lists, weights=pool_weights)
         return fused[:top_k]
 
     def fetch_records(self, doc_ids, fields=None, chunk_size=200):
