@@ -10,4 +10,4 @@ POOL_SIZE=100
 MAX_RESULTS=1000
 SEARCH_MODE=hybrid   # hybrid (default) | semantic | keyword
 STATIC_QUERY=Categories.NameEng:"Materials Science"   # optional fixed ES query_string fused in as a third pool (hybrid mode only), to guarantee recall for a known category/filter regardless of QUERY relevance. Leave unset to disable.
-STATIC_WEIGHT=1.0   # RRF weight for the static pool (only used if STATIC_QUERY is set)
+STATIC_WEIGHT=1.0   
