@@ -25,6 +25,19 @@ class HybridRetriever:
         # Load embedding model (must match what built the index)
         self.model = SentenceTransformer(embedding_model)
     
+    @staticmethod
+    def _es_filters():
+        """Standard filters applied to every ES-backed pool (keyword, static): only
+        publications from START_YEAR onward, excluding drafts/deleted/needs-attention
+        records - matching what build_index.py already excludes when building the
+        semantic pool's vector store, so all pools apply the same exclusions."""
+        return [
+            {"range": {"Year": {"gte": os.environ.get("START_YEAR", 2014)}}},
+            {"term": {"NeedsAttention": False}},
+            {"term": {"IsDraft": False}},
+            {"term": {"IsDeleted": False}},
+        ]
+
     def keyword_search(self, query_text, top_k):
         """Returns list of (doc_id, rank) tuples from ES."""
         body = {
@@ -36,9 +49,7 @@ class HybridRetriever:
                             "fields": ["Title^3", "Abstract^2", "Categories.NameEng^2", "Keywords^2"]
                         }
                     },
-                    "filter": {
-                        "range": {"Year": {"gte": os.environ.get("START_YEAR", 2014)}}
-                    }
+                    "filter": self._es_filters()
                 }
             },
             "size": top_k,
@@ -48,7 +59,7 @@ class HybridRetriever:
             (hit["_source"].get("Id") or hit["_id"], rank, hit["_score"], hit["_source"].get("Title", ""))
             for rank, hit in enumerate(response["hits"]["hits"], start=1)
         ]
-    
+
     def static_search(self, query_string, top_k):
         """Returns list of (doc_id, rank, score, title) tuples from a fixed, predefined
         ES query_string (eg. 'Categories.NameEng:"Materials Science"'), independent of the
@@ -60,9 +71,7 @@ class HybridRetriever:
                     "must": {
                         "query_string": {"query": query_string}
                     },
-                    "filter": {
-                        "range": {"Year": {"gte": os.environ.get("START_YEAR", 2014)}}
-                    }
+                    "filter": self._es_filters()
                 }
             },
             "size": top_k,
@@ -131,6 +140,9 @@ class HybridRetriever:
         static_query: optional fixed ES query_string (eg. 'Categories.NameEng:"Materials Science"')
                       fused in as a third pool, independent of query_text, to guarantee recall
                       for a known category/filter (index 2 in each result's "matched_methods").
+                      Every static_query match is kept in the returned results even if RRF's
+                      score-based ranking would otherwise place it past top_k - so the final
+                      result count can exceed top_k when static_query is given.
         """
         if mode == "semantic":
             sem_results = self.semantic_search(query_text, top_k=top_k)
@@ -148,14 +160,28 @@ class HybridRetriever:
         sem_results = self.semantic_search(query_text, top_k=candidates_per_method)
         result_lists = [kw_results, sem_results]
         pool_weights = list(weights[:2])
+        static_pool_idx = None
 
         if static_query:
             static_results = self.static_search(static_query, top_k=candidates_per_method)
             result_lists.append(static_results)
             pool_weights.append(weights[2] if len(weights) > 2 else 1.0)
+            static_pool_idx = len(result_lists) - 1
 
         fused = self.reciprocal_rank_fusion(result_lists, weights=pool_weights)
-        return fused[:top_k]
+        top = fused[:top_k]
+
+        if static_pool_idx is not None:
+            # Static-pool hits are guaranteed recall, not relevance-ranked - don't let
+            # RRF's score-based truncation drop them just because keyword/semantic filled
+            # the top_k first. Append any static match that fell outside the cutoff,
+            # keeping their relative RRF order.
+            top_ids = {r["doc_id"] for r in top}
+            missing_static = [r for r in fused[top_k:]
+                               if static_pool_idx in r["matched_methods"] and r["doc_id"] not in top_ids]
+            return top + missing_static
+
+        return top
 
     def fetch_records(self, doc_ids, fields=None, chunk_size=200):
         """Fetch selected fields for multiple doc_ids using batched terms queries.

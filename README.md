@@ -34,8 +34,11 @@ Queries are issued against the Title, Abstract, Keyword and Category (subject) f
     - POOL_SIZE - how many publication records (top candidates) should be retrieved from each pool when searching (keyword, semantic), before merging the results. Setting this way too high could cause timeout errors. (default: *1000* but can probably be set a lot higher)   
     - MAX_RETURNED - max number of (merged) candidates returned.     
     - SEARCH_MODE - *hybrid* (both keyword and semantic search, with RRF), *semantic* (only) or *keyword* (only). (default: *hybrid*)       
-    - STATIC_QUERY - optional fixed ES `query_string` (eg. `Categories.NameEng:"Materials Science"`), fused in as a third RRF pool alongside keyword and semantic (hybrid mode only). Unlike QUERY, it does not need to be relevant to the free-text search - it guarantees recall for a known category/filter. Leave unset to disable.    
+    - STATIC_QUERY - optional fixed ES `query_string` (eg. `Categories.NameEng:"Materials Science"`), fused in as a third RRF pool alongside keyword and semantic (hybrid mode only). Unlike QUERY, it does not need to be relevant to the free-text search - it guarantees recall for a known category/filter. Every STATIC_QUERY match is kept in the output even if it would otherwise be cut by MAX_RESULTS, so the result count can exceed MAX_RESULTS when this is set. Leave unset to disable.    
     - STATIC_WEIGHT - RRF weight for the static pool, only used if STATIC_QUERY is set. (default: *1.0*)   
+    - CSV_FIELDS - fields to be included in output CSV. Comma-separated field paths fetched and written as CSV columns, in order. Must have the same number of entries as CSV_HEADER.    
+    - CSV_HEADER - comma-separated display labels for the CSV_FIELDS columns above, in the same order.   
+    - PUBTYPE_FILTER - optional comma-separated list of allowed `PublicationType.NameEng` values (eg. `'Journal article','Paper in proceeding','Book','Book chapter','Other text in scientific journal','Review article'`); only matching records are written to the CSV. Leave unset to disable.   
 
 - Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while and must be re-run if the ES index content changes, but not if just modifying the query or search filters)       
 ``python build_index.py``   

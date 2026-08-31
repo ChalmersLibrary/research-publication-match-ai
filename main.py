@@ -29,6 +29,18 @@ def _split_path(dotted_key):
     parts.append(current)
     return parts
 
+def _parse_quoted_list(value):
+    """Parse a comma-separated list where each item may optionally be wrapped in
+    matching quotes, eg. 'Journal article','Paper in proceeding','Book' or a plain
+    Journal article,Paper in proceeding,Book."""
+    items = []
+    for item in value.split(","):
+        item = item.strip()
+        if len(item) >= 2 and item[0] == item[-1] and item[0] in ("'", '"'):
+            item = item[1:-1]
+        items.append(item)
+    return items
+
 def _get_nested(d, dotted_key):
     """Traverse a nested dict/list using a dot-separated key.
     Supports array indexing: 'IdentifierDoi[0]' or 'IdentifierScopusId[0] or 'Authors[0].Name'.
@@ -152,10 +164,26 @@ retriever = HybridRetriever(
 if STATIC_QUERY:
     print(f"[debug] including static pool for: {STATIC_QUERY!r} (weight={STATIC_WEIGHT})")
 results = retriever.search(QUERY, top_k=MAX_RESULTS, mode=SEARCH_MODE, static_query=STATIC_QUERY, weights=(1.0, 1.0, STATIC_WEIGHT))
+if STATIC_QUERY and len(results) > MAX_RESULTS:
+    print(f"[debug] {len(results) - MAX_RESULTS} static-pool matches added beyond MAX_RESULTS to guarantee their inclusion (total={len(results)})")
 
-CSV_FIELDS = ["Id", "Title", "IdentifierDoi[0]", "IdentifierScopusId[0]", "Persons[*].PersonData.DisplayName", "Persons[*].PersonData.IdentifierCid[0]", "Abstract", "Year", "PublicationType.NameEng",
-              "Categories[Type.Id=fba59577-7c91-4a65-9154-7fd8b630f81a].NameEng"]
-CSV_HEADER = ["Id", "Title", "DOI", "Scopus ID", "Authors", "CID", "Abstract", "Year", "PublicationType", "Chalmers AoA"]
+CSV_FIELDS = [f.strip() for f in os.environ.get(
+    "CSV_FIELDS",
+    "Id,Title,IdentifierDoi[0],IdentifierScopusId[0],Persons[*].PersonData.DisplayName,"
+    "Persons[*].PersonData.IdentifierCid[0],Abstract,Year,PublicationType.NameEng,"
+    "Categories[Type.Id=fba59577-7c91-4a65-9154-7fd8b630f81a].NameEng"
+).split(",")]
+CSV_HEADER = [h.strip() for h in os.environ.get(
+    "CSV_HEADER",
+    "Id,Title,DOI,Scopus ID,Authors,CID,Abstract,Year,PublicationType,Chalmers AoA"
+).split(",")]
+PUBTYPE_FILTER = os.environ.get("PUBTYPE_FILTER")
+PUBTYPE_FILTER_SET = set(_parse_quoted_list(PUBTYPE_FILTER)) if PUBTYPE_FILTER else None
+if len(CSV_FIELDS) != len(CSV_HEADER):
+    raise ValueError(
+        f"CSV_FIELDS has {len(CSV_FIELDS)} comma-separated entries but CSV_HEADER has "
+        f"{len(CSV_HEADER)} - they must match 1:1 and stay in the same order."
+    )
 OUTFILE_CSV = os.environ.get('OUTFILE_CSV', "results") + f".{datetime.now().strftime('%Y%m%d.%H%M%S')}.csv"
 
 print(f"\nRESULTS:\n")
@@ -171,7 +199,8 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
         m = re.search(r"\[[^\]]*=[^\]]*\]", f)
         return f[:m.start()] if m else re.sub(r"\[[^\]]*\]", "", f)
 
-    es_fields = list(dict.fromkeys(_to_es_field(f) for f in CSV_FIELDS))
+    fetch_fields = CSV_FIELDS + (["PublicationType.NameEng"] if PUBTYPE_FILTER_SET else [])
+    es_fields = list(dict.fromkeys(_to_es_field(f) for f in fetch_fields))
     all_doc_ids = [r["doc_id"] for r in results]
     print(f"Fetching {len(all_doc_ids)} records from ES...")
     records_by_id = retriever.fetch_records(all_doc_ids, fields=es_fields)
@@ -187,6 +216,9 @@ with open(OUTFILE_CSV, "w", newline="", encoding="utf-8") as csvfile:
         # Only include publications from the specified publication year onward (e.g. 2018-)
         if (record.get('Year') or 0) < int(os.environ.get("START_YEAR", 2014)):
             print(f"  Skipping record!")
+            continue
+        if PUBTYPE_FILTER_SET is not None and _get_nested(record, "PublicationType.NameEng") not in PUBTYPE_FILTER_SET:
+            print(f"  Skipping record (PublicationType not in PUBTYPE_FILTER)!")
             continue
         row = {f: _get_nested(record, f) for f in CSV_FIELDS}
         # Clean title text for CSV output (remove HTML tags, unescape entities, normalize whitespace)
