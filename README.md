@@ -38,7 +38,7 @@ Queries are issued against the Title, Abstract, Keyword and Category (subject) f
     - STATIC_WEIGHT - RRF weight for the static pool, only used if STATIC_QUERY is set. (default: *1.0*)   
     - CSV_FIELDS - fields to be included in output CSV. Comma-separated field paths fetched and written as CSV columns, in order. Must have the same number of entries as CSV_HEADER.    
     - CSV_HEADER - comma-separated display labels for the CSV_FIELDS columns above, in the same order.   
-    - PUBTYPE_FILTER - optional comma-separated list of allowed `PublicationType.NameEng` values (eg. `'Journal article','Paper in proceeding','Book','Book chapter','Other text in scientific journal','Review article'`); only matching records are written to the CSV. Leave unset to disable.   
+    - PUBTYPE_FILTER - optional comma-separated list of allowed `PublicationType.NameEng` values (eg. `Journal article,Paper in proceeding,Book,Book chapter,Other text in scientific journal,Review article`); only matching records are written to the CSV. Leave unset to disable. Do NOT wrap individual items in quotes (eg. `'Journal article','Book'`) - python-dotenv fails to parse that and silently drops the whole variable (no filtering applied, with only a console warning).   
 
 - Create local vector store (FAISS and jsonl indexes) for semantic search (may take a while and must be re-run if the ES index content changes, but not if just modifying the query or search filters)       
 ``python build_index.py``   

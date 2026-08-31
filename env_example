@@ -12,4 +12,4 @@ STATIC_QUERY=Categories.NameEng:"Materials Science"   # optional fixed ES query_
 STATIC_WEIGHT=1.0
 CSV_FIELDS=Id,Title,IdentifierDoi[0],IdentifierScopusId[0],Persons[*].PersonData.DisplayName,Persons[*].PersonData.IdentifierCid[0],Abstract,Year,PublicationType.NameEng,Categories[Type.Id=fba59577-7c91-4a65-9154-7fd8b630f81a].NameEng   # optional, comma-separated field paths fetched and written as CSV columns, in order. Must have the same number of entries as CSV_HEADER. Omit both to use this default.
 CSV_HEADER=Id,Title,DOI,Scopus ID,Authors,CID,Abstract,Year,PublicationType,Chalmers AoA   # optional, comma-separated display labels for the CSV_FIELDS columns above, in the same order. Omit both to use this default.
-PUBTYPE_FILTER='Journal article','Paper in proceeding','Book','Book chapter','Other text in scientific journal','Review article' # leave unset to include all   
+PUBTYPE_FILTER=Journal article,Paper in proceeding,Book,Book chapter,Other text in scientific journal,Review article # leave unset to include all   

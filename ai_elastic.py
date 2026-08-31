@@ -39,7 +39,12 @@ class HybridRetriever:
         ]
 
     def keyword_search(self, query_text, top_k):
-        """Returns list of (doc_id, rank) tuples from ES."""
+        """Returns list of (doc_id, rank, score) tuples from ES.
+        Only the Id field is fetched - rank/score are all this pool contributes to RRF, the
+        full record is fetched separately (with just the fields the caller needs) once the
+        final result set is known, so pulling full documents here (potentially tens of
+        thousands of them, each carrying Abstract/Categories/Persons/etc.) would be pure
+        wasted ES/network load."""
         body = {
             "query": {
                 "bool": {
@@ -52,19 +57,22 @@ class HybridRetriever:
                     "filter": self._es_filters()
                 }
             },
+            "_source": ["Id"],
+            "track_total_hits": False,
             "size": top_k,
         }
         response = self.es.search(index=self.es_index, body=body)
         return [
-            (hit["_source"].get("Id") or hit["_id"], rank, hit["_score"], hit["_source"].get("Title", ""))
+            (hit["_source"].get("Id") or hit["_id"], rank, hit["_score"])
             for rank, hit in enumerate(response["hits"]["hits"], start=1)
         ]
 
     def static_search(self, query_string, top_k):
-        """Returns list of (doc_id, rank, score, title) tuples from a fixed, predefined
-        ES query_string (eg. 'Categories.NameEng:"Materials Science"'), independent of the
+        """Returns list of (doc_id, rank, score) tuples from a fixed, predefined ES
+        query_string (eg. 'Categories.NameEng:"Materials Science"'), independent of the
         free-text QUERY. Used to guarantee recall for a known category/filter even when its
-        members don't score well against the keyword/semantic pools."""
+        members don't score well against the keyword/semantic pools. Only the Id field is
+        fetched, for the same reason as keyword_search above."""
         body = {
             "query": {
                 "bool": {
@@ -74,11 +82,13 @@ class HybridRetriever:
                     "filter": self._es_filters()
                 }
             },
+            "_source": ["Id"],
+            "track_total_hits": False,
             "size": top_k,
         }
         response = self.es.search(index=self.es_index, body=body)
         return [
-            (hit["_source"].get("Id") or hit["_id"], rank, hit["_score"], hit["_source"].get("Title", ""))
+            (hit["_source"].get("Id") or hit["_id"], rank, hit["_score"])
             for rank, hit in enumerate(response["hits"]["hits"], start=1)
         ]
 
@@ -127,8 +137,8 @@ class HybridRetriever:
             for doc_id, score in ranked
         ]
     
-    def search(self, query_text, top_k=os.environ.get("MAX_RESULTS", 5000), candidates_per_method=os.environ.get("POOL_SIZE", 2000),
-               weights=(1.0, 1.0, 1.0), mode=os.environ.get("SEARCH_MODE", "hybrid"), static_query=None):
+    def search(self, query_text, top_k=None, candidates_per_method=None,
+               weights=(1.0, 1.0, 1.0), mode=None, static_query=None):
         """
         Search publications.
 
@@ -143,7 +153,20 @@ class HybridRetriever:
                       Every static_query match is kept in the returned results even if RRF's
                       score-based ranking would otherwise place it past top_k - so the final
                       result count can exceed top_k when static_query is given.
+
+        top_k, candidates_per_method and mode default to the MAX_RESULTS/POOL_SIZE/SEARCH_MODE
+        env vars, read here (at call time) rather than as parameter defaults - a parameter
+        default expression is evaluated once at import time, before main.py's load_dotenv()
+        call populates os.environ, so it would otherwise silently fall back to a stale value
+        regardless of what's actually set in .env.
         """
+        if top_k is None:
+            top_k = int(os.environ.get("MAX_RESULTS", 5000))
+        if candidates_per_method is None:
+            candidates_per_method = int(os.environ.get("POOL_SIZE", 2000))
+        if mode is None:
+            mode = os.environ.get("SEARCH_MODE", "hybrid")
+
         if mode == "semantic":
             sem_results = self.semantic_search(query_text, top_k=top_k)
             return [

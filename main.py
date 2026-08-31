@@ -120,6 +120,7 @@ except Exception as e:
 QUERY = os.environ.get("QUERY")
 SEARCH_MODE = os.environ.get("SEARCH_MODE", "hybrid")
 MAX_RESULTS = int(os.environ.get("MAX_RESULTS", 5000))
+POOL_SIZE = int(os.environ.get("POOL_SIZE", 2000))
 STATIC_QUERY = os.environ.get("STATIC_QUERY") or None
 STATIC_WEIGHT = float(os.environ.get("STATIC_WEIGHT", 1.0))
 
@@ -163,7 +164,7 @@ retriever = HybridRetriever(
 # Retrieve results with both methods (plus an optional static/predefined pool), combine them with RRF and write to file
 if STATIC_QUERY:
     print(f"[debug] including static pool for: {STATIC_QUERY!r} (weight={STATIC_WEIGHT})")
-results = retriever.search(QUERY, top_k=MAX_RESULTS, mode=SEARCH_MODE, static_query=STATIC_QUERY, weights=(1.0, 1.0, STATIC_WEIGHT))
+results = retriever.search(QUERY, top_k=MAX_RESULTS, candidates_per_method=POOL_SIZE, mode=SEARCH_MODE, static_query=STATIC_QUERY, weights=(1.0, 1.0, STATIC_WEIGHT))
 if STATIC_QUERY and len(results) > MAX_RESULTS:
     print(f"[debug] {len(results) - MAX_RESULTS} static-pool matches added beyond MAX_RESULTS to guarantee their inclusion (total={len(results)})")
 
